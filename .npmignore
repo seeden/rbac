@@ -1,4 +1,9 @@
 node_modules
 .DS_Store
 .git
+.github
+.claude
 src
+coverage
+nlnet-proposal-draft.md
+babel.config.js

@@ -1,6 +1,11 @@
 // @flow
-import isPlainObject from 'lodash/isPlainObject';
 import Base from './Base';
+
+function isPlainObject(value) {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
 import Role from './Role';
 import Permission from './Permission';
 import Storage from './Storage';

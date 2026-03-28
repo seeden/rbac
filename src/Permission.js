@@ -43,8 +43,8 @@ export default class Permission extends Base {
     }
 
     return {
-      action: name.substr(0, pos),
-      resource: name.substr(pos + 1),
+      action: name.substring(0, pos),
+      resource: name.substring(pos + 1),
     };
   }
 
