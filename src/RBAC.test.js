@@ -1,7 +1,4 @@
-import { RBAC, Permission, Memory/*, Mongoose, Dynamoose, MySql */ } from '../src/index';
-import should from 'should';
-// import mongoose from 'mongoose';
-// import dynamoose from 'dynamoose';
+import { RBAC, Permission, Memory } from '../src/index';
 
 function testRBAC(storage, storageType) {
   describe(`RBAC ${storageType}`, () => {
@@ -30,7 +27,6 @@ function testRBAC(storage, storageType) {
       const decoded = Permission.decodeName('create_article', '_');
 
       expect(decoded).toBeDefined();
-
       expect(decoded.action).toBe('create');
       expect(decoded.resource).toBe('article');
     });
@@ -41,7 +37,8 @@ function testRBAC(storage, storageType) {
       expect(data).toBeDefined();
 
       response = data;
-      response.should.have.properties(['roles', 'permissions']);
+      expect(response).toHaveProperty('roles');
+      expect(response).toHaveProperty('permissions');
 
       for (let i = 0; i < roles.length; i += 1) {
         const name = roles[i];
@@ -56,7 +53,6 @@ function testRBAC(storage, storageType) {
         const name = Permission.createName(permission[0], permission[1], '_');
         expect(response.permissions[name]).toBeDefined();
 
-        // check name
         const instance = response.permissions[name];
         expect(instance.name).toBe(name);
       }
@@ -251,12 +247,12 @@ function testRBAC(storage, storageType) {
 
     it('should be able to get scope for admin', async () => {
       const scope = await rbac.getScope('admin');
-      scope.should.containDeep(['delete_user', 'create_article', 'update_article']);
+      expect(scope).toEqual(expect.arrayContaining(['delete_user', 'create_article', 'update_article']));
     });
 
     it('should be able to get scope for user', async () => {
       const scope = await rbac.getScope('user');
-      scope.should.containDeep(['create_article', 'update_article']);
+      expect(scope).toEqual(expect.arrayContaining(['create_article', 'update_article']));
     });
 
     it('should be able to get scope for more complex object', async () => {
@@ -279,37 +275,9 @@ function testRBAC(storage, storageType) {
       await localRBAC.init();
 
       const scope = await localRBAC.getScope('admin');
-      scope.should.containDeep(['delete_user', 'update_rbac', 'create_article', 'change_password']);
+      expect(scope).toEqual(expect.arrayContaining(['delete_user', 'update_rbac', 'create_article', 'change_password']));
     });
   });
 }
 
 testRBAC(new Memory(), 'Memory');
-/*
-const mongooseStorage = new Mongoose({
-  connection: mongoose.connect('mongodb://localhost/rbac'),
-});
-
-testRBAC(mongooseStorage, 'Mongoose');
-
-
-const mysqlStorage = new MySql({
-  username: 'root',
-  password: ''
-});
-
-testRBAC(mysqlStorage, 'MySql');
-*/
-// dynamoose.AWS.config.update({
-//   accessKeyId: 'AKID',
-//   secretAccessKey: 'SECRET',
-//   region: 'us-west-2',
-// });
-//
-// dynamoose.local();
-//
-// const dynamooseStorage = new Dynamoose({
-//   connection: dynamoose,
-// });
-//
-// testRBAC(dynamooseStorage, 'Dynamoose');
