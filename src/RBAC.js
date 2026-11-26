@@ -384,29 +384,39 @@ export default class RBAC {
    * @param {Function} cb Callback function
    * @private
    */
-  async traverseGrants(roleName: string, cb: Function, next: String[] = [roleName], used: Object = {}): any {
-    const actualRole = next.shift();
-    used[actualRole] = true;
+  async traverseGrants(
+    roleName: string,
+    cb: Function,
+    next: string[] = [roleName],
+    used: Set<string> = new Set(),
+  ): any {
+    // `used` is a Set (not a plain object) so role names such as `constructor`
+    // or `toString` are not mistaken for already visited roles.
+    next.forEach(name => used.add(name));
 
-    const grants = await this.storage.getGrants(actualRole);
-    for (let i = 0; i < grants.length; i += 1) {
-      const item = grants[i];
-      const { name } = item;
+    while (next.length) {
+      const actualRole = next.shift();
 
-      if (item instanceof Role && !used[name]) {
-        used[name] = true;
-        next.push(name);
-      }
+      // eslint-disable-next-line no-await-in-loop
+      const grants = await this.storage.getGrants(actualRole);
+      for (let i = 0; i < grants.length; i += 1) {
+        const item = grants[i];
+        const { name } = item;
 
-      const result = await cb(item);
-      if (result !== undefined) {
-        return result;
+        if (item instanceof Role && !used.has(name)) {
+          used.add(name);
+          next.push(name);
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const result = await cb(item);
+        if (result !== undefined) {
+          return result;
+        }
       }
     }
 
-    if (next.length) {
-      return this.traverseGrants(null, cb, next, used);
-    }
+    return undefined;
   }
 
   /**
@@ -436,6 +446,11 @@ export default class RBAC {
    * @return {boolean}
    */
   async canAny(roleName: string, permissions: Object[]): boolean {
+    // an empty requirement list grants nothing (fail closed)
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return false;
+    }
+
     // prepare the names of permissions
     const permissionNames = RBAC.getPermissionNames(permissions, this.options.delimiter);
 
@@ -459,15 +474,23 @@ export default class RBAC {
    * @return {boolean} Current instance
    */
   async canAll(roleName: string, permissions: Object[]) {
-    // prepare the names of permissions
-    const permissionNames = RBAC.getPermissionNames(permissions, this.options.delimiter);
-    const founded = {};
+    // an empty requirement list must not be vacuously true (fail closed)
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return false;
+    }
+
+    // prepare the names of permissions (deduplicated, otherwise duplicates
+    // in the input could never all be "found")
+    const permissionNames = Array.from(
+      new Set(RBAC.getPermissionNames(permissions, this.options.delimiter)),
+    );
+    const founded = new Set();
     let foundedCount = 0;
 
     // traverse hierarchy
     await this.traverseGrants(roleName, (item) => {
-      if (item instanceof Permission && permissionNames.includes(item.name) && !founded[item.name]) {
-        founded[item.name] = true;
+      if (item instanceof Permission && permissionNames.includes(item.name) && !founded.has(item.name)) {
+        founded.add(item.name);
         foundedCount += 1;
 
         if (foundedCount === permissionNames.length) {

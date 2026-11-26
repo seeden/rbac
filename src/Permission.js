@@ -43,8 +43,8 @@ export default class Permission extends Base {
     }
 
     return {
-      action: name.substr(0, pos),
-      resource: name.substr(pos + 1),
+      action: name.slice(0, pos),
+      resource: name.slice(pos + delimiter.length),
     };
   }
 
@@ -114,7 +114,8 @@ export default class Permission extends Base {
   }
 
   /**
-   * Correct name can not contain whitespace or underscores.
+   * Correct name is a non-empty string that contains no whitespace and none of
+   * the characters of the delimiter (so encoded permission names stay unambiguous).
    * @function isValidName
    * @memberof Permission
    * @param  {String} name Name
@@ -123,11 +124,22 @@ export default class Permission extends Base {
    * @static
    */
   static isValidName(name: string, delimiter: string): boolean {
-    if (!delimiter) {
-      throw new Error('Delimeter is not defined');
+    if (!delimiter || typeof delimiter !== 'string') {
+      throw new Error('Delimiter is not defined');
     }
 
-    const exp = new RegExp(`^[^${delimiter}\\s]+$`);
-    return exp.test(name);
+    if (typeof name !== 'string' || name.length === 0 || /\s/.test(name)) {
+      return false;
+    }
+
+    // Plain character comparison instead of a RegExp built from the delimiter,
+    // so delimiters such as `]`, `\` or `^` cannot change the validation rule.
+    for (let i = 0; i < delimiter.length; i += 1) {
+      if (name.includes(delimiter[i])) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
